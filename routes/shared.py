@@ -27,9 +27,13 @@ def retrieve_context(query, k=4):
     vectorstore = get_vectorstore()
     if not vectorstore:
         return ""
-    docs = vectorstore.similarity_search_with_score(query, k=k)
-    docs = [doc for doc, score in docs]
+    retriever =  vectorstore.as_retriever(search_type='similarity', search_kwargs={'k': k})
+    docs = retriever.invoke(query)
+    if not docs:
+        return ""
+    # If you want to return the content of the documents as a string
     return "\n\n".join([d.page_content for d in docs])
+   
 
 def get_vectorstore():
     if not os.path.exists("faiss_index"):
@@ -78,3 +82,19 @@ def get_vectorstore():
 def get_chat_history(session_id: str = "default_session"):
     history = SQLChatMessageHistory(session_id, "sqlite:///chat_history.db")
     return history
+
+def all_chunks_loader():
+    # to load all chunks from the vectors database
+    vectorstore = get_vectorstore()
+    if not vectorstore:
+        return []
+    #Logic to retrieve all chunks from the vectorstore
+    num_chunks = vectorstore.index.ntotal
+    retriever = vectorstore.as_retriever(search_type='similarity', search_kwargs={'k': num_chunks})
+    docs = retriever.invoke("Retrieve all chunks")
+
+    if not docs:
+        return ""
+    # If you want to return the content of the documents as a string
+    return "\n\n".join([d.page_content for d in docs])
+

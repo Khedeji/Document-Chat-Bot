@@ -3,8 +3,9 @@ from langchain_core.prompts import SystemMessagePromptTemplate, HumanMessageProm
 from langchain_ollama import ChatOllama
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableWithMessageHistory,RunnableLambda
-from .shared import retrieve_context, add_session, get_chat_history
-from .Chain_Route import rout
+from langchain_core.messages import HumanMessage, AIMessage
+from .shared import retrieve_context, add_session, get_chat_history,all_chunks_loader
+from .Chain_Route import rout, decide_context_scope
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 
@@ -27,25 +28,38 @@ class ChatHandler:
 
             # llm = ChatOllama(base_url="http://20.20.20.202:11434", model='llama3', project_name="chatbot")
             llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
-            context = retrieve_context(user_message,5)
+
+
+            history = get_chat_history(session_id)
+            if not history:
+                history = []
+            historydocs = ''
+            for msg in history.messages:
+                if isinstance(msg, HumanMessage):
+                    historydocs += f"User: {msg.content}\n"
+                elif isinstance(msg, AIMessage):
+                    historydocs += f"Bot: {msg.content}\n"
             
-
-            # if not context.strip():
-            #     return jsonify({'reply': "This question is not covered in the document, so I'm unable to answer it. Please let me know if you have any other questions."})
-
-
-
+            scope = decide_context_scope(user_message)
+            if scope == 'vector':
+                context = retrieve_context(user_message ,20)
+            else:
+                context = all_chunks_loader()
+            context += f"\n\nPrevious Chat History:\n{historydocs}"
+                
+                
+                
+            # )
             system = SystemMessagePromptTemplate.from_template(
-                "You are an AI assistant who answers users' questions only on the basis of the provided context. "
-                "Context:\n{context}\n\n"
-                "If the user greets like (Hii, Hello GM GN etc), clasify 'Greeting'. If the user says thanks or goodbye or wow or express some feeelings, clasify 'Greeting'. respond politely. If the user says thanks or goodbye, respond with any polite closure statement."
-                "If the user question cannot be answered from the context or on comparing input and context, you found not similer or replyable say: 'This question is not covered in the document, so I'm unable to answer it. "
-                "Please let me know if you have any other questions.' "
-                "if user input is can be answered from given context , then respond with the answer based on the context."
-                
-                
-            )
-            prompt = HumanMessagePromptTemplate.from_template("Question:\n{question}")
+                    "You are an AI assistant that answers user questions strictly based on the context and chat history in summarized way.\n\n"
+                    "Context may include retrieved documents and previous conversation.\n\n"
+                    "- If the user greets (e.g., 'Hi', 'Hello', 'GM', 'GN'), Respond with proper wishing.(for eg. Hello, How can i assist you)\n"
+                    "- If the user says 'Thanks', 'Bye', or expresses feelings (e.g., 'wow'), Respond with proper  Greeting reply Message or respond with polite closure message.\n"
+                    "Use prior conversation to maintain continuity.\n"
+                    "- If the user question is answerable from the context, give a summarized response.\n"
+                    "- If the question can't be answered from context or history, reply: 'This question is not covered in the document, so I'm unable to answer it.'"
+                )
+            prompt = HumanMessagePromptTemplate.from_template("Context:\n{context}\n\n""Question:\n{question} " "\n\nAnswer:")
             messages = [system, MessagesPlaceholder(variable_name="history"), prompt]
             template = ChatPromptTemplate(messages)
             

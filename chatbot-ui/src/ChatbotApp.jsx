@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import { FaTrash } from 'react-icons/fa';
+import ReactMarkdown from 'react-markdown';
 
 function ChatbotApp() {
   const [messages, setMessages] = useState([]);
@@ -158,7 +159,12 @@ function ChatbotApp() {
                 <div className="chat-window">
                 {messages.map((msg, idx) => (
                     <div key={idx} className="message-row">
-                        <div className={`message-bubble ${msg.sender}`}>{msg.text}</div>
+
+                        <div className={`message-bubble ${msg.sender}`}>
+                          <ReactMarkdown>
+                            {msg.text}
+                          </ReactMarkdown>
+                          </div>
                     </div>
                 ))}
                 {loading && (

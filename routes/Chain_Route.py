@@ -1,7 +1,7 @@
 from langchain_ollama import ChatOllama
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import SystemMessagePromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder, ChatPromptTemplate
-
+from langchain_google_genai import ChatGoogleGenerativeAI
 def retrieve_context(question):
     # Dummy implementation, replace with actual context retrieval logic
     return "This is the context for the question."
@@ -43,6 +43,27 @@ def Answer_Chain(context, question):
     llm = ChatOllama(base_url="http://localhost:11434", model='mistral', project_name="chatbot")
     Answer_chain = template | llm | StrOutputParser()
     return Answer_chain
+
+
+def  decide_context_scope(user_input):
+    # Dummy implementation, replace with actual logic to decide which chain to use
+    print("Deciding context scope based on user input")
+    template = ChatPromptTemplate.from_template(
+        "You are an AI classifier who classify user questions on basis of requirement "
+        "first you need to analyze the user_input"
+        "then"
+        "If the user_input is involving any specific information or context,which can be answered by similarty searching  Classify it as 'vector' "
+        "for example,  'What is the employee detail?' or tell me about this topic or give this detial etc"
+        "If the user_input is involving any query ,which can be required to load whole vector database classify it as 'non-vector' "
+        "for example, 'how many are in this ' or 'summarize the topic' or someone asks about 'starting of data' and 'someone ask end' or 'tell me about all from <topic>'  or give me all etc"
+        "User Input: {user_input}   " 
+        "Classify as 'vector' or 'non-vector' based on the user input."
+        
+    )
+    llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash")
+    classification_chain = template | llm | StrOutputParser()
+    result = classification_chain.invoke({"user_input": user_input})
+    return result
 
 def rout(result):
     if 'greeting' in result["sentiment"].lower() or 'hello' in result["sentiment"].lower() or 'hi' in result["sentiment"].lower():
